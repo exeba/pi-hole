@@ -13,15 +13,15 @@
 
 export LC_ALL=C
 
-coltable="/opt/pihole/COL_TABLE"
+coltable="/usr/local/share/pihole/scripts/COL_TABLE"
 source "${coltable}"
 # shellcheck disable=SC1091
-source "/etc/.pihole/advanced/Scripts/database_migration/gravity-db.sh"
+source "/usr/local/share/pihole/scripts/database_migration/gravity-db.sh"
 
 basename="pihole"
 PIHOLE_COMMAND="/usr/local/bin/${basename}"
 
-piholeDir="/etc/${basename}"
+piholeDir="/usr/local/etc/${basename}"
 
 # Legacy (pre v5.0) list file locations
 whitelistFile="${piholeDir}/whitelist.txt"
@@ -32,12 +32,11 @@ adListFile="${piholeDir}/adlists.list"
 localList="${piholeDir}/local.list"
 VPNList="/etc/openvpn/ipp.txt"
 
-piholeGitDir="/etc/.pihole"
 gravityDBfile_default="${piholeDir}/gravity.db"
 # GRAVITYDB may be overwritten by source pihole-FTL.conf below
 GRAVITYDB="${gravityDBfile_default}"
-gravityDBschema="${piholeGitDir}/advanced/Templates/gravity.db.sql"
-gravityDBcopy="${piholeGitDir}/advanced/Templates/gravity_copy.sql"
+gravityDBschema="/usr/local/share/pihole/templates/gravity.db.sql"
+gravityDBcopy="/usr/local/share/pihole/templates/gravity_copy.sql"
 
 domainsExtension="domains"
 
@@ -73,6 +72,16 @@ if [[ -r "${piholeDir}/pihole.conf" ]]; then
   echo -e "  ${COL_LIGHT_RED}Ignoring overrides specified within pihole.conf! ${COL_NC}"
 fi
 
+file_sha1() {
+  sha1 -q "${1}"
+}
+
+verify_sha1_checksum() {
+    local file="${1}"
+
+    sha1 -qc `cat "${file}".sha1 | cut -f1 -d" "` "${file}" > /dev/null
+}
+
 # Generate new SQLite3 file from schema template
 generate_gravity_database() {
   if ! pihole-FTL sqlite3 "${gravityDBfile}" < "${gravityDBschema}"; then
@@ -104,9 +113,10 @@ gravity_swap_databases() {
 
   # Swap databases and remove or conditionally rename old database
   # Number of available blocks on disk
-  availableBlocks=$(stat -f --format "%a" "${gravityDIR}")
+  availableBlocks=$(df -bc "${gravityDIR}" | grep total | sed -E 's/.*([0-9]+) ([0-9]+) ([0-9]+).*/\3/')
   # Number of blocks, used by gravity.db
-  gravityBlocks=$(stat --format "%b" ${gravityDBfile})
+  # TODO: verify that st_blocks refers to 512 bytes size blocks 
+  gravityBlocks=$(stat -f "%b" ${gravityDBfile})
   # Only keep the old database if available disk space is at least twice the size of the existing gravity.db.
   # Better be safe than sorry...
   oldAvail=false
@@ -144,10 +154,10 @@ database_table_from_file() {
   src="${2}"
   backup_path="${piholeDir}/migration_backup"
   backup_file="${backup_path}/$(basename "${2}")"
-  tmpFile="$(mktemp -p "/tmp" --suffix=".gravity")"
+  tmpFile="$(mktemp -t db.gravity)"
 
   local timestamp
-  timestamp="$(date --utc +'%s')"
+  timestamp="$(date -u +'%s')"
 
   local rowid
   declare -i rowid
@@ -417,7 +427,7 @@ gravity_DownloadBlocklists() {
     echo -e "${OVER}  ${TICK} ${str}"
   fi
 
-  target="$(mktemp -p "/tmp" --suffix=".gravity")"
+  target="$(mktemp -t db.gravity)"
 
   # Use compression to reduce the amount of data that is transferred
   # between the Pi-hole and the ad list provider. Use this feature
@@ -562,9 +572,9 @@ compareLists() {
 
   # Verify checksum when an older checksum exists
   if [[ -s "${target}.sha1" ]]; then
-    if ! sha1sum --check --status --strict "${target}.sha1"; then
+    if ! verify_sha1_checksum "${target}"; then
       # The list changed upstream, we need to update the checksum
-      sha1sum "${target}" > "${target}.sha1"
+      file_sha1 "${target}" > "${target}.sha1"
       echo "  ${INFO} List has been updated"
       database_adlist_status "${adlistID}" "1"
       database_adlist_updated "${adlistID}"
@@ -574,7 +584,7 @@ compareLists() {
     fi
   else
     # No checksum available, create one for comparing on the next run
-    sha1sum "${target}" > "${target}.sha1"
+    file_sha1 "${target}" > "${target}.sha1"
     # We assume here it was changed upstream
     database_adlist_status "${adlistID}" "1"
     database_adlist_updated "${adlistID}"
@@ -587,7 +597,7 @@ gravity_DownloadBlocklistFromUrl() {
   local heisenbergCompensator="" patternBuffer str httpCode success="" ip
 
   # Create temp file to store content on disk instead of RAM
-  patternBuffer=$(mktemp -p "/tmp" --suffix=".phgpb")
+  patternBuffer="$(mktemp -t gravity.phpgb)"
 
   # Determine if $saveLocation has read permission
   if [[ -r "${saveLocation}" && $url != "file"* ]]; then
@@ -735,9 +745,9 @@ gravity_ParseFileIntoDomains() {
     # 6) Delete lines not matching domain names
     < "${src}" tr -d '\r' | \
     tr '[:upper:]' '[:lower:]' | \
-    sed 's/\s*#.*//g' | \
+    sed 's/[[:space:]]*#.*//g' | \
     sed -r '/(\/).*$/d' | \
-    sed -r 's/^.*\s+//g' | \
+    sed -r 's/^.*[[:space:]]+//g' | \
     sed -r '/([^\.]+\.)+[^\.]{2,}/!d' >  "${destination}"
     chmod 644 "${destination}"
     return 0
@@ -992,7 +1002,7 @@ if [[ "${forceDelete:-}" == true ]]; then
   str="Deleting existing list cache"
   echo -ne "${INFO} ${str}..."
 
-  rm /etc/pihole/list.* 2> /dev/null || true
+  rm /usr/local/etc/pihole/list.* 2> /dev/null || true
   echo -e "${OVER}  ${TICK} ${str}"
 fi
 

@@ -24,7 +24,7 @@
 #   - If it does not exist, it adds the value
 #
 # Example usage:
-# addOrEditKeyValPair "/etc/pihole/setupVars.conf" "BLOCKING_ENABLED" "true"
+# addOrEditKeyValPair "/usr/local/etc/pihole/setupVars.conf" "BLOCKING_ENABLED" "true"
 #######################
 addOrEditKeyValPair() {
   local file="${1}"
@@ -62,7 +62,7 @@ addKey(){
 # Deletes a key or key/value pair from target file
 #
 # Example usage:
-# removeKey "/etc/pihole/setupVars.conf" "PIHOLE_DNS_1"
+# removeKey "/usr/local/etc/pihole/setupVars.conf" "PIHOLE_DNS_1"
 #######################
 removeKey() {
   local file="${1}"
@@ -74,8 +74,8 @@ removeKey() {
 # returns path of FTL's port file
 #######################
 getFTLAPIPortFile() {
-    local FTLCONFFILE="/etc/pihole/pihole-FTL.conf"
-    local DEFAULT_PORT_FILE="/run/pihole-FTL.port"
+    local FTLCONFFILE="/usr/local/etc/pihole/pihole-FTL.conf"
+    local DEFAULT_PORT_FILE="/var/run/pihole-FTL.port"
     local FTL_APIPORT_FILE
 
     if [ -s "${FTLCONFFILE}" ]; then
@@ -117,8 +117,8 @@ getFTLAPIPort(){
 # returns path of FTL's PID  file
 #######################
 getFTLPIDFile() {
-  local FTLCONFFILE="/etc/pihole/pihole-FTL.conf"
-  local DEFAULT_PID_FILE="/run/pihole-FTL.pid"
+  local FTLCONFFILE="/usr/local/etc/pihole/pihole-FTL.conf"
+  local DEFAULT_PID_FILE="/var/run/pihole-FTL.pid"
   local FTL_PID_FILE
 
   if [ -s "${FTLCONFFILE}" ]; then
@@ -136,7 +136,7 @@ getFTLPIDFile() {
 # returns FTL's PID based on the content of the pihole-FTL.pid file
 #
 # Takes one argument: path to pihole-FTL.pid
-# Example getFTLPID "/run/pihole-FTL.pid"
+# Example getFTLPID "/var/run/pihole-FTL.pid"
 #######################
 getFTLPID() {
     local FTL_PID_FILE="${1}"

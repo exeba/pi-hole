@@ -9,12 +9,12 @@
 # This file is copyright under the latest version of the EUPL.
 # Please see LICENSE file for your rights under this license.
 
-readonly PI_HOLE_SCRIPT_DIR="/opt/pihole"
+readonly PI_HOLE_SCRIPT_DIR="/usr/local/share/pihole/scripts"
 
 # setupVars and PI_HOLE_BIN_DIR are not readonly here because in some functions (checkout),
 # they might get set again when the installer is sourced. This causes an
 # error due to modifying a readonly variable.
-setupVars="/etc/pihole/setupVars.conf"
+setupVars="/usr/local/etc/pihole/setupVars.conf"
 PI_HOLE_BIN_DIR="/usr/local/bin"
 
 readonly colfile="${PI_HOLE_SCRIPT_DIR}/COL_TABLE"
@@ -276,24 +276,22 @@ analyze_ports() {
   # function is getting called
   # Check individual address family/protocol combinations
   # For a healthy Pi-hole, they should all be up (nothing printed)
-  lv4="$(ss --ipv4 --listening --numeric --tcp --udp src :${port})"
-  if grep -q "udp " <<< "${lv4}"; then
+  if [ "X" != "`sockstat -lq4 -p $port -P udp`X" ]; then
       echo -e "     ${TICK} UDP (IPv4)"
   else
       echo -e "     ${CROSS} UDP (IPv4)"
   fi
-  if grep -q "tcp " <<< "${lv4}"; then
+  if [ "X" != "`sockstat -lq4 -p $port -P tcp`X" ]; then
       echo -e "     ${TICK} TCP (IPv4)"
   else
       echo -e "     ${CROSS} TCP (IPv4)"
   fi
-  lv6="$(ss --ipv6 --listening --numeric --tcp --udp src :${port})"
-  if grep -q "udp " <<< "${lv6}"; then
+  if [ "X" != "`sockstat -lq6 -p $port -P udp`X" ]; then
       echo -e "     ${TICK} UDP (IPv6)"
   else
       echo -e "     ${CROSS} UDP (IPv6)"
   fi
-  if grep -q "tcp " <<< "${lv6}"; then
+  if [ "X" != "`sockstat -lq6 -p $port -P tcp`X" ]; then
       echo -e "     ${TICK} TCP (IPv6)"
   else
       echo -e "     ${CROSS} TCP (IPv6)"
@@ -335,13 +333,13 @@ statusFunc() {
     fi
 
   # Determine if Pi-hole's blocking is enabled
-  if grep -q "BLOCKING_ENABLED=false" /etc/pihole/setupVars.conf; then
+  if grep -q "BLOCKING_ENABLED=false" /usr/local/etc/pihole/setupVars.conf; then
     # A config is commented out
     case "${1}" in
       "web") echo 0;;
       *) echo -e "  ${CROSS} Pi-hole blocking is disabled";;
     esac
-  elif grep -q "BLOCKING_ENABLED=true" /etc/pihole/setupVars.conf;  then
+  elif grep -q "BLOCKING_ENABLED=true" /usr/local/etc/pihole/setupVars.conf;  then
     # Configs are set
     case "${1}" in
       "web") echo "$port";;
